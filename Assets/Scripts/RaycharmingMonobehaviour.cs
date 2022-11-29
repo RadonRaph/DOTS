@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Raccoonlabs;
 using UnityEngine;
 using Unity.Entities;
 using UnityEngine.Rendering;
@@ -14,6 +15,7 @@ public class RaycharmingMonobehaviour : MonoBehaviour
     public ComputeShader computeShader;
     public RenderTexture Texture;
     public Vector3 size;
+    public Vector3 sizeScale;
 
     public float[] vals;
 
@@ -24,7 +26,7 @@ public class RaycharmingMonobehaviour : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(transform.position, size);
+        Gizmos.DrawWireCube(transform.position, size.Mul(sizeScale));
     }
 
     // Start is called before the first frame update
@@ -36,7 +38,9 @@ public class RaycharmingMonobehaviour : MonoBehaviour
 
         _raycharmingSystem.ComputeShader = computeShader;
         _raycharmingSystem.Size = Raccoonlabs.MathExtends.ToV3IntCeiled(size);
-        fog.parameters.size = size;
+        _raycharmingSystem.sizeScale = sizeScale;
+        fog.parameters.size = size.Mul(sizeScale);
+        
       //  _raycharmingSystem.Texture = texture;
         _raycharmingSystem.Init();
         
