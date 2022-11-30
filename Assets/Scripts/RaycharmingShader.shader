@@ -220,7 +220,7 @@ Shader "FullScreen/RaycharmingShader"
 
     float CalculateDistance(Sphere s, float3 p)
     {
-       return clamp( 1-distance(p, s.center)-s.radius,0,1);
+       return  clamp(1- (distance(p, s.center)-s.radius),0,1);
     }
 
 
@@ -254,22 +254,24 @@ Shader "FullScreen/RaycharmingShader"
 
         float dist = 9999;
         
-        float dist_MX = 9999;
-        float dist_PX = 9999;
+        float dist_MX = 0;
+        float dist_PX = 0;
 
-        float dist_MY = 9999;
-        float dist_PY = 9999;
+        float dist_MY = 0;
+        float dist_PY = 0;
 
-        float dist_MZ = 9999;
-        float dist_PZ = 9999;
+        float dist_MZ = 0;
+        float dist_PZ = 0;
 
-        float delta = 0.000001;
+        float delta = 0.00001;
         
-        int distCount = 0;
+        float distCount = 0;
 
         float sumDensity = 0;
         float sumRi = 0;
         float minDistance = 100000;
+
+        dist = 0;
 
         BoxIntersectionResult boxResult = BoxIntersection(b, r);
         if (boxResult.intersect){
@@ -289,16 +291,17 @@ Shader "FullScreen/RaycharmingShader"
                 float3 cp_MZ = cp + float3(0,0,-delta);
                 float3 cp_PZ = cp + float3(0, 0,delta);
 
-                dist = min(distance(cp, s.center)-s.radius, dist);
+                dist += CalculateDistance(s, cp);
+                distCount++;
 
-                dist_MX = min(CalculateDistance(s, cp_MX), dist_MX);
-                dist_PX = min(CalculateDistance(s, cp_PX), dist_PX);
+                dist_MX += CalculateDistance(s, cp_MX);
+                dist_PX += CalculateDistance(s, cp_PX);
 
-                dist_MY = min(CalculateDistance(s, cp_MY), dist_MY);
-                dist_PY = min(CalculateDistance(s, cp_PY), dist_PY);
+                dist_MY += CalculateDistance(s, cp_MY);
+                dist_PY += CalculateDistance(s, cp_PY);
 
-                dist_MZ = min(CalculateDistance(s, cp_MZ), dist_MZ);
-                dist_PZ = min(CalculateDistance(s, cp_PZ), dist_PZ);
+                dist_MZ += CalculateDistance(s, cp_MZ);
+                dist_PZ += CalculateDistance(s, cp_PZ);
 
                 
             }
@@ -306,10 +309,19 @@ Shader "FullScreen/RaycharmingShader"
             yellow = true;
         }
 
+       // dist /= distCount;
 
-        dist = clamp(1-dist,0,1);
-        dist_MY = clamp(1-dist_MY,0,1);
-        dist_PY = clamp(1-dist_PY,0,1);
+        dist = pow(dist, 0.9);
+
+        dist_MX = pow(dist_MX, 0.9);
+        dist_PX = pow(dist_PX, 0.9);
+
+        dist_MY = pow(dist_MY, 0.9);
+        dist_PY = pow(dist_PY, 0.9);
+
+        dist_MZ = pow(dist_MZ, 0.9);
+        dist_PZ = pow(dist_PZ, 0.9);
+
 
         float dist_X = dist_PX-dist_MX;
         float dist_Y = dist_PY-dist_MY;
@@ -349,7 +361,9 @@ Shader "FullScreen/RaycharmingShader"
         {
 
             float c = dist*lightW+0.5;
-            color = float4(dist,dist_PY,dist_Y,1);
+            c= dist;
+            color = float4(c,c,c,1);
+            color = float4(dist_X*1/delta, dist_Y*1/delta, dist_Z*1/delta,1);
         }
 
        // color = float4(posInput.positionWS,1);
