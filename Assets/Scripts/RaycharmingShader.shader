@@ -57,7 +57,8 @@ Shader "FullScreen/RaycharmingShader"
     {
         float3 center;
         float3 half_extends;
-        float3 bounds[2];
+        float3 min;
+        float3 max;
     };
 
     Box CreateBox(float3 center, float3 halfExtends)
@@ -65,57 +66,111 @@ Shader "FullScreen/RaycharmingShader"
         Box b;
         b.center = center;
         b.half_extends = halfExtends;
-        b.bounds[0] = center-halfExtends;
-        b.bounds[1] = center+halfExtends;
+        b.min = center-halfExtends;
+        b.max = center+halfExtends;
 
         return b;
     }
 
-    bool intersect(Box b, Ray r) 
-    { 
-        float tmin, tmax, tymin, tymax, tzmin, tzmax; 
-     
-        tmin = (b.bounds[r.sign[0]].x - r.origin.x) * r.invdir.x; 
-        tmax = (b.bounds[1-r.sign[0]].x - r.origin.x) * r.invdir.x; 
-        tymin = (b.bounds[r.sign[1]].y - r.origin.y) * r.invdir.y; 
-        tymax = (b.bounds[1-r.sign[1]].y - r.origin.y) * r.invdir.y; 
-     
-        if ((tmin > tymax) || (tymin > tmax)) 
-            return false; 
-     
-        if (tymin > tmin) 
-            tmin = tymin; 
-        if (tymax < tmax) 
-            tmax = tymax; 
-     
-        tzmin = (b.bounds[r.sign[2]].z - r.origin.z) * r.invdir.z; 
-        tzmax = (b.bounds[1-r.sign[2]].z - r.origin.z) * r.invdir.z; 
-     
-        if ((tmin > tzmax) || (tzmin > tmax)) 
-            return false; 
-     
-        if (tzmin > tmin) 
-            tmin = tzmin; 
-        if (tzmax < tmax) 
-            tmax = tzmax; 
-     
-        return true; 
+    
+    bool BoxIntersection(Box b, Ray r) {
+        double tx1 = (b.min.x - r.origin.x)*r.invdir.x;
+        double tx2 = (b.max.x - r.origin.x)*r.invdir.x;
+
+        double tmin = min(tx1, tx2);
+        double tmax = max(tx1, tx2);
+
+        double ty1 = (b.min.y - r.origin.y)*r.invdir.y;
+        double ty2 = (b.max.y - r.origin.y)*r.invdir.y;
+
+        tmin = max(tmin, min(ty1, ty2));
+        tmax = min(tmax, max(ty1, ty2));
+
+        double tz1 = (b.min.z - r.origin.z)*r.invdir.z;
+        double tz2 = (b.max.z- r.origin.z)*r.invdir.z;
+
+        tmin = max(tmin, min(tz1, tz2));
+        tmax = min(tmax, max(tz1, tz2));
+
+        return tmax >= tmin;
     }
 
-    bool Contains(Box b, float3 pos)
+    struct Sphere
     {
-        bool x = pos.x > b.bounds[0].x && pos.x< b.bounds[1].x;
-        bool y = pos.y > b.bounds[0].y && pos.y< b.bounds[1].y;
-        bool z = pos.z > b.bounds[0].z && pos.z< b.bounds[1].z;
+        float3 center;
+        float radius;
+        float radius2;
+    };
+
+    Sphere CreateSphere(float3 c, float r)
+    {
+        Sphere s;
+        s.center = c;
+        s.radius = r;
+        s.radius2 = r*r;
+        return  s;
+    }
+
+    /*
+    bool SphereIntersection(Sphere s, Ray r)
+    {
+        float L = r.origin-s.center;
+        float tc = dot(L, r.dir);
+
+        if (tc < 0.0) return false;
+
+        float d2 = dot(L, L)-(tc*tc);
+        
+        if (d2 > s.radius2) return false;
+
+        float thc = sqrt(s.radius2-d2);
+
+        float t0 = tc - thc; 
+        float t1 = tc + thc;
+
+        if (t0 < 0) { 
+            t0 = t1;  //if t0 is negative, let's use t1 instead 
+            if (t0 < 0) return false;  //both t0 and t1 are negative 
+        } 
+
+        return true;
+    }*/
+
+    
+    bool SphereIntersection(Sphere s, Ray r)
+    {
+        float3 L = r.origin - s.center; 
+        float a = dot(r.dir, r.dir);
+        float b = 2 * dot(r.dir, L);
+        float c = dot(L, L) - s.radius2;
+
+        float discr = b * b - 4 * a * c;
+
+        if (discr < 0) return false;
+
+        return true;
+    }
+
+    
+
+    bool BoxContains(Box b, float3 pos)
+    {
+        bool x = pos.x > b.min.x && pos.x< b.max.x;
+        bool y = pos.y > b.min.y && pos.y< b.max.y;
+        bool z = pos.z > b.min.z && pos.z< b.max.z;
 
         return x&&y&&z;
     }
+
+    RWBuffer<float3> spherePos;
+    RWBuffer<float> sphereRadius;
 
 
     float4 FullScreenPass(Varyings varyings) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(varyings);
         float depth = LoadCameraDepth(varyings.positionCS.xy);
+        
         PositionInputs posInput = GetPositionInput(varyings.positionCS.xy, _ScreenSize.zw, depth, UNITY_MATRIX_I_VP, UNITY_MATRIX_V);
         float3 viewDirection = GetWorldSpaceNormalizeViewDir(posInput.positionWS);
         float4 color = float4(0.0, 0.0, 0.0, 0.0);
@@ -125,27 +180,39 @@ Shader "FullScreen/RaycharmingShader"
             color = float4(CustomPassLoadCameraColor(varyings.positionCS.xy, 0), 1);
 
         // Add your custom pass code here
-        Box b = CreateBox(float3(0,0,10), float3(2,1,2));
-        //Ray r = CreateRay(posInput.positionWS, viewDirection);
+        Box b = CreateBox(float3(0,0,0)-_WorldSpaceCameraPos, float3(40,32,40));
+        Sphere s = CreateSphere(float3(0,0,0)-_WorldSpaceCameraPos, 1);
 
-        float3 o = posInput.positionWS;
-        float3 t = o + viewDirection * 100;
+        
+       float3 dir = GetWorldSpaceViewDir(posInput.positionWS);
 
+        
+        Ray r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
+
+        bool yellow = SphereIntersection(s, r);
+
+        //bool yellow = BoxIntersection(b, r);
+
+       // float3 o = _WorldSpaceCameraPos;
+       // float3 t = posInput.positionWS;
+
+        /*
         bool yellow = false;
 
-        for (float i = 0; i < 1; i+=0.1)
+        for (float i = 0; i < 1; i+=0.01)
         {
             float3 pos = lerp(o,t, i);
             if (Contains(b, pos))
                 yellow = true;
         }
-
+*/
 
         if (yellow)
         {
             color = float4(1,1,0,1);
         }
 
+       // color = float4(posInput.positionWS,1);
         
 
         // Fade value allow you to increase the strength of the effect while the camera gets closer to the custom pass volume
