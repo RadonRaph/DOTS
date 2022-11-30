@@ -263,7 +263,7 @@ Shader "FullScreen/RaycharmingShader"
         float dist_MZ = 9999;
         float dist_PZ = 9999;
 
-        float delta = 0.001;
+        float delta = 0.000001;
         
         int distCount = 0;
 
@@ -277,7 +277,7 @@ Shader "FullScreen/RaycharmingShader"
             {
                 Sphere s = CreateSphere(spherePos[i]-_WorldSpaceCameraPos,  sphereRadius[i]);
              //   SphereIntersectionResult result = SphereIntersection(s,r);
-                yellow = true;
+               
                 float3 cp = nearestPointOnLine(boxResult.pointMin, boxResult.pointMax, s.center);
 
                 float3 cp_MX = cp + float3(-delta,0,0);
@@ -291,22 +291,25 @@ Shader "FullScreen/RaycharmingShader"
 
                 dist = min(distance(cp, s.center)-s.radius, dist);
 
-                dist_MX = min(CalculateDistance(s, dist_MX), dist_MX);
-                dist_PX = min(CalculateDistance(s, dist_PX), dist_PX);
+                dist_MX = min(CalculateDistance(s, cp_MX), dist_MX);
+                dist_PX = min(CalculateDistance(s, cp_PX), dist_PX);
 
-                dist_MY = min(CalculateDistance(s, dist_MY), dist_MY);
-                dist_PY = min(CalculateDistance(s, dist_PY), dist_PY);
+                dist_MY = min(CalculateDistance(s, cp_MY), dist_MY);
+                dist_PY = min(CalculateDistance(s, cp_PY), dist_PY);
 
-                dist_MZ = min(CalculateDistance(s, dist_MZ), dist_MZ);
-                dist_PZ = min(CalculateDistance(s, dist_PX), dist_PZ);
+                dist_MZ = min(CalculateDistance(s, cp_MZ), dist_MZ);
+                dist_PZ = min(CalculateDistance(s, cp_PZ), dist_PZ);
 
                 
             }
             red = true;
+            yellow = true;
         }
 
 
         dist = clamp(1-dist,0,1);
+        dist_MY = clamp(1-dist_MY,0,1);
+        dist_PY = clamp(1-dist_PY,0,1);
 
         float dist_X = dist_PX-dist_MX;
         float dist_Y = dist_PY-dist_MY;
@@ -346,7 +349,7 @@ Shader "FullScreen/RaycharmingShader"
         {
 
             float c = dist*lightW+0.5;
-            color = float4(dist,dist_X,c,1);
+            color = float4(dist,dist_PY,dist_Y,1);
         }
 
        // color = float4(posInput.positionWS,1);
