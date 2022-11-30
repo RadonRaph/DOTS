@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Raccoonlabs;
 using UnityEngine;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 
@@ -17,6 +18,8 @@ public class RaycharmingMonobehaviour : MonoBehaviour
     public Vector3 size;
     public Vector3 sizeScale;
 
+    public Material mat;
+
     public float[] vals;
 
     private int _kernel;
@@ -29,6 +32,10 @@ public class RaycharmingMonobehaviour : MonoBehaviour
         Gizmos.DrawWireCube(transform.position, size.Mul(sizeScale));
     }
 
+    private ComputeBuffer spherePos;
+    private ComputeBuffer sphereRadius;
+    private bool bufferInit = false;
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -44,27 +51,45 @@ public class RaycharmingMonobehaviour : MonoBehaviour
       //  _raycharmingSystem.Texture = texture;
         _raycharmingSystem.Init();
         
-        /*
-        
-        Texture = new RenderTexture(16, 8, 0, RenderTextureFormat.ARGBFloat);
-        Texture.width = 16;
-        Texture.height = 8;
-        Texture.volumeDepth = 16;
-        Texture.dimension = TextureDimension.Tex3D;
-        Texture.enableRandomWrite = true;
-        Texture.Create();
+        spherePos = new ComputeBuffer(100, 3*4);
+        sphereRadius = new ComputeBuffer(100, 4);
 
-        _kernel = computeShader.FindKernel("CSMain");
-        
-        computeShader.SetInts(_kernel, 16,8,16);
-        computeShader.SetTexture(_kernel, "Result", Texture);
-        computeShader.Dispatch(_kernel, 16,8,16);*/
     }
+
+
 
     public void Update()
     {
-        Texture = _raycharmingSystem.Texture;
-        fog.parameters.volumeMask = Texture;
-        // vals = _raycharmingSystem.amountVals;
+      //  Texture = _raycharmingSystem.Texture;
+      //  fog.parameters.volumeMask = Texture;
+
+
+      var particles = _raycharmingSystem.particles;
+
+      int count = Mathf.Min( particles.Length, 100);
+      float3[] position = new float3[count];
+      float[] radius = new float[count];
+
+      for (int i = 0; i < count; i++)
+      {
+          
+          Debug.DrawRay(particles[i].Position, Vector3.up, Color.green);
+          position[i] = particles[i].Position;
+          radius[i] = particles[i].Amount*5;
+      }
+      
+      
+      spherePos.SetData(position);
+      sphereRadius.SetData(radius);
+      
+      mat.SetInt("sphereCount", count);
+      mat.SetBuffer("spherePos", spherePos);
+      mat.SetBuffer("sphereRadius", sphereRadius);
+    }
+
+    private void OnDestroy()
+    {
+        spherePos.Dispose();
+        sphereRadius.Dispose();
     }
 }

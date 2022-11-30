@@ -34,19 +34,14 @@ public partial class RaycharmingSystem : SystemBase
     private static readonly ProfilerMarker k_BufferMarker = new ProfilerMarker("Raycharming system buffer make");
     private static readonly ProfilerMarker k_BufferSendMarker = new ProfilerMarker("Raycharming system buffer send");
     private static readonly ProfilerMarker k_DispatchMarker = new ProfilerMarker("Raycharming system CS Dispatch");
-
-    protected override void OnCreate()
-    {
-        base.OnCreate();
-
-
-
-        
-        
-    }
+    
 
     private ComputeBuffer _computeBuffer;
     private NativeArray<float> _lastVals;
+
+    private EntityQuery _query;
+
+    public NativeArray<RaycharmingParticle> particles;
 
     public void Init()
     {
@@ -66,11 +61,11 @@ public partial class RaycharmingSystem : SystemBase
         
         _world = World.DefaultGameObjectInjectionWorld;
         _manager = _world.EntityManager;
-       // CreateEntities();
-       int count = Size.x * Size.y * Size.z;
+        int count = Size.x * Size.y * Size.z;
        _computeBuffer = new ComputeBuffer(count, sizeof(float));
 
-      // _lastVals = new NativeArray<float>(count, Allocator.Persistent);
+       _query = new EntityQueryBuilder(Allocator.Persistent).WithAll<RaycharmingParticle>().Build(this);
+
 
         _init = true;
     }
@@ -124,11 +119,9 @@ public partial class RaycharmingSystem : SystemBase
         }).ScheduleParallel(Dependency);
         
         Dependency = JobHandle.CombineDependencies(Dependency, updateParticleHandle);
-
- //       NativeArray<float> lastVals = new NativeArray<float>(_lastVals, Allocator.TempJob);
+        
         JobHandle handle = Entities.WithName("Particle_Amount_Transfer").WithAll<RaycharmingParticle>().ForEach((ref RaycharmingParticle cell) =>
         {
-   //         cell.lastAmount = lastVals[cell.lastIndex];
             vals[cell.lastIndex] += cell.Amount;
 
         }).Schedule(Dependency);
@@ -137,34 +130,23 @@ public partial class RaycharmingSystem : SystemBase
         ecb.Playback(_manager);
         
         ecb.Dispose();
-        
+
+        particles = _query.ToComponentDataArray<RaycharmingParticle>(Allocator.Persistent);
 
         /*
-        for (int i = 0; i < count; i++)
-        {
-            if ((debug[i] != float3.zero).x)
-            {
-                Debug.DrawRay(debug[i], Vector3.down, Color.red);
-            }
-        }*/
-        
-//CACA
         k_BufferMarker.Begin();
-
-        _computeBuffer.SetData(vals);
-     //   _lastVals.CopyFrom(vals);
+            _computeBuffer.SetData(vals);
         k_BufferMarker.End();
         
         k_BufferSendMarker.Begin();
-        ComputeShader.SetBuffer(_kernel, "Input", _computeBuffer);
+            ComputeShader.SetBuffer(_kernel, "Input", _computeBuffer);
         k_BufferSendMarker.End();
         
         k_DispatchMarker.Begin();
-        ComputeShader.Dispatch(_kernel, Size.x, Size.y, Size.z);
-        k_DispatchMarker.End();
+         ComputeShader.Dispatch(_kernel, Size.x, Size.y, Size.z);
+        k_DispatchMarker.End();*/
 
         vals.Dispose();
-     //   lastVals.Dispose();
 
 
     }
@@ -175,77 +157,6 @@ public partial class RaycharmingSystem : SystemBase
         _computeBuffer.Dispose();
     }
 
-    /*
-    void CreateEntities()
-    {
-        int count = Size.x * Size.y * Size.z;
 
-        NativeArray<float3> pos = new NativeArray<float3>(count, Allocator.TempJob);
-        NativeArray<float> amount = new NativeArray<float>(count, Allocator.TempJob);
-
-        for (int x = 0; x < Size.x; x++)
-        {
-            for (int y = 0; y < Size.y; y++)
-            {
-                for (int z = 0; z < Size.z; z++)
-                {
-                    Vector3 val = new Vector3(x, y, z);
-                    int i = Raccoonlabs.ArrayExtends.ToLinearIndex(val, Size.x, Size.y, Size.z);
-                    pos[i] = val;
-                    amount[i] = Random.value;
-                }
-            }
-        }
-        
-
-
-        _ecb = new EntityCommandBuffer(Allocator.TempJob, PlaybackPolicy.MultiPlayback);
-
-        _prototype = _manager.CreateEntity();
-
-        _manager.AddComponent<RaycharmingParticle>(_prototype);
-        
-        
-        var spawnJob = new SpawnJob()
-        {
-            Prototype = _prototype,
-            Ecb = _ecb.AsParallelWriter(),
-            EntityCount = count,
-            Pos = pos,
-            Val = amount,
-        };
-
-        var spawnHandle = spawnJob.Schedule(count, 128);
-            
-        spawnHandle.Complete();
-        _ecb.Playback(_manager);
-
-    }
-    
-    [GenerateTestsForBurstCompatibility]
-    public struct SpawnJob : IJobParallelFor
-    {
-        public Entity Prototype;
-        public int EntityCount;
-        public EntityCommandBuffer.ParallelWriter Ecb;
-        public NativeArray<float3> Pos;
-        public NativeArray<float> Val;
-
-        public void Execute(int index)
-        {
-            // Clone the Prototype entity to create a new entity.
-            RaycharmingParticle particle = new RaycharmingParticle();
-            particle.Position = Pos[index];
-            particle.Amount = Val[index];
-            
-            
-            Entity e = Ecb.Instantiate(index, Prototype);
-            Ecb.SetComponent(index, e, particle);
-
-        }
-
-
-    }
-    */
 
 }

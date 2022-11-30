@@ -162,8 +162,9 @@ Shader "FullScreen/RaycharmingShader"
         return x&&y&&z;
     }
 
-    RWBuffer<float3> spherePos;
-    RWBuffer<float> sphereRadius;
+    int sphereCount = 0;
+    Buffer<float3> spherePos;
+    Buffer<float> sphereRadius;
 
 
     float4 FullScreenPass(Varyings varyings) : SV_Target
@@ -181,7 +182,7 @@ Shader "FullScreen/RaycharmingShader"
 
         // Add your custom pass code here
         Box b = CreateBox(float3(0,0,0)-_WorldSpaceCameraPos, float3(40,32,40));
-        Sphere s = CreateSphere(float3(0,0,0)-_WorldSpaceCameraPos, 1);
+        
 
         
        float3 dir = GetWorldSpaceViewDir(posInput.positionWS);
@@ -189,7 +190,20 @@ Shader "FullScreen/RaycharmingShader"
         
         Ray r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
 
-        bool yellow = SphereIntersection(s, r);
+        //bool yellow = SphereIntersection(s, r);
+
+        bool yellow = false;
+        bool red = false;
+
+        if (BoxIntersection(b, r)){
+            for (int i = 0; i < sphereCount; i++)
+            {
+                Sphere s = CreateSphere(spherePos[i]-_WorldSpaceCameraPos, 5);
+                if (SphereIntersection(s, r))
+                    yellow = true;
+            }
+            red = true;
+        }
 
         //bool yellow = BoxIntersection(b, r);
 
@@ -207,6 +221,11 @@ Shader "FullScreen/RaycharmingShader"
         }
 */
 
+        if (red)
+        {
+            color.x += 0.1;
+        }
+        
         if (yellow)
         {
             color = float4(1,1,0,1);
