@@ -218,6 +218,11 @@ Shader "FullScreen/RaycharmingShader"
     Buffer<float3> spherePos;
     Buffer<float> sphereRadius;
 
+    float CalculateDistance(Sphere s, float3 p)
+    {
+       return clamp( 1-distance(p, s.center)-s.radius,0,1);
+    }
+
 
     float4 FullScreenPass(Varyings varyings) : SV_Target
     {
@@ -248,32 +253,70 @@ Shader "FullScreen/RaycharmingShader"
         bool red = false;
 
         float dist = 9999;
+        
+        float dist_MX = 9999;
+        float dist_PX = 9999;
+
+        float dist_MY = 9999;
+        float dist_PY = 9999;
+
+        float dist_MZ = 9999;
+        float dist_PZ = 9999;
+
+        float delta = 0.001;
+        
         int distCount = 0;
+
+        float sumDensity = 0;
+        float sumRi = 0;
+        float minDistance = 100000;
 
         BoxIntersectionResult boxResult = BoxIntersection(b, r);
         if (boxResult.intersect){
             for (int i = 0; i < sphereCount; i++)
             {
                 Sphere s = CreateSphere(spherePos[i]-_WorldSpaceCameraPos,  sphereRadius[i]);
-                SphereIntersectionResult result = SphereIntersection(s,r);
-                
-                if (result.Intersect)
-                {
-                    yellow = true;
-                    //dist = max(distance(s.center, result.point1)/s.radius, dist);
+             //   SphereIntersectionResult result = SphereIntersection(s,r);
+                yellow = true;
+                float3 cp = nearestPointOnLine(boxResult.pointMin, boxResult.pointMax, s.center);
 
-                    float3 cp = nearestPointOnLine(result.point1, result.point2, s.center);
-                    dist = min(distance(cp, s.center), dist);
-                    distCount++;
-                }else
-                {
-                    yellow = true;
-                    float3 cp = nearestPointOnLine(boxResult.pointMin, boxResult.pointMax, s.center);
-                    dist = min(distance(cp, s.center), dist);
-                }
+                float3 cp_MX = cp + float3(-delta,0,0);
+                float3 cp_PX = cp + float3(delta,0,0);
+
+                float3 cp_MY = cp + float3(0,-delta,0);
+                float3 cp_PY = cp + float3(0, delta,0);
+                
+                float3 cp_MZ = cp + float3(0,0,-delta);
+                float3 cp_PZ = cp + float3(0, 0,delta);
+
+                dist = min(distance(cp, s.center)-s.radius, dist);
+
+                dist_MX = min(CalculateDistance(s, dist_MX), dist_MX);
+                dist_PX = min(CalculateDistance(s, dist_PX), dist_PX);
+
+                dist_MY = min(CalculateDistance(s, dist_MY), dist_MY);
+                dist_PY = min(CalculateDistance(s, dist_PY), dist_PY);
+
+                dist_MZ = min(CalculateDistance(s, dist_MZ), dist_MZ);
+                dist_PZ = min(CalculateDistance(s, dist_PX), dist_PZ);
+
+                
             }
             red = true;
         }
+
+
+        dist = clamp(1-dist,0,1);
+
+        float dist_X = dist_PX-dist_MX;
+        float dist_Y = dist_PY-dist_MY;
+        float dist_Z = dist_PZ-dist_MZ;
+
+        float3 normal = normalize(float3(dist_X, dist_Y, dist_Z));
+
+        float3 light = float3(10,10,0);
+
+        float lightW = dot(normal, light);
 
       //  dist/=distCount;
       //  dist*=0.5;
@@ -301,8 +344,9 @@ Shader "FullScreen/RaycharmingShader"
         
         if (yellow)
         {
-            if (dist < 5)
-            color = float4(1,1,0,1);
+
+            float c = dist*lightW+0.5;
+            color = float4(dist,dist_X,c,1);
         }
 
        // color = float4(posInput.positionWS,1);
