@@ -12,6 +12,7 @@ public class RaycharmingSpawner : MonoBehaviour
 
     public int quantity = 5;
     public float radius = 1;
+    public Vector2 amount;
     public float delay = 5f;
     public float delayRandomMultiplier = 3;
 
@@ -55,7 +56,9 @@ public class RaycharmingSpawner : MonoBehaviour
                 
                 RaycharmingParticle particle = new RaycharmingParticle();
                 particle.Position = pos;
-                particle.Amount = 1;
+                float amt = Random.Range(amount.x, amount.y);
+                particle.Amount = amt;
+                particle.BaseAmount = amt;
 
                 _manager.AddComponent<RaycharmingParticle>(e);
                 _manager.SetComponentData(e, particle);

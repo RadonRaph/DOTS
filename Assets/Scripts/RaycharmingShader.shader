@@ -72,8 +72,17 @@ Shader "FullScreen/RaycharmingShader"
         return b;
     }
 
+    struct BoxIntersectionResult
+    {
+        bool intersect;
+        float3 pointMin;
+        float3 pointMax;
+    };
+
     
-    bool BoxIntersection(Box b, Ray r) {
+    BoxIntersectionResult BoxIntersection(Box b, Ray r) {
+        BoxIntersectionResult result;
+        
         double tx1 = (b.min.x - r.origin.x)*r.invdir.x;
         double tx2 = (b.max.x - r.origin.x)*r.invdir.x;
 
@@ -92,7 +101,10 @@ Shader "FullScreen/RaycharmingShader"
         tmin = max(tmin, min(tz1, tz2));
         tmax = min(tmax, max(tz1, tz2));
 
-        return tmax >= tmin;
+        result.intersect = tmax >= tmin;
+        result.pointMin = r.origin+r.dir*tmin;
+        result.pointMax = r.origin+r.dir*tmax;
+        return result;
     }
 
     struct Sphere
@@ -136,9 +148,18 @@ Shader "FullScreen/RaycharmingShader"
         return true;
     }*/
 
-    
-    bool SphereIntersection(Sphere s, Ray r)
+    struct SphereIntersectionResult
     {
+        bool Intersect;
+        float3 point1;
+        float3 point2;
+    };
+
+    
+    SphereIntersectionResult SphereIntersection(Sphere s, Ray r)
+    {
+        SphereIntersectionResult result;
+        
         float3 L = r.origin - s.center; 
         float a = dot(r.dir, r.dir);
         float b = 2 * dot(r.dir, L);
@@ -146,9 +167,40 @@ Shader "FullScreen/RaycharmingShader"
 
         float discr = b * b - 4 * a * c;
 
-        if (discr < 0) return false;
+        if (discr < 0){
+            result.Intersect = false;
+        }else if (discr == 0)
+        {
+            float v = 0.5*b/a;
+            result.point1 = r.origin+r.dir*v;
+            result.point2 = r.origin+r.dir*v;
 
-        return true;
+            result.Intersect = true;
+        }
+        else
+        {
+            float q = (b > 0) ? -0.5 * (b+sqrt(discr)) : -0.5 * (b-sqrt(discr));
+
+            float x0 = q/a;
+            float x1 = c/q;
+            
+            result.point1 = r.origin+r.dir * min(x0,x1);
+            result.point2 = r.origin+r.dir* max(x0,x1);
+
+            result.Intersect = true;
+        }
+
+        
+
+        return result;
+    }
+
+    float3 nearestPointOnLine(float3 lineA, float3 lineB, float3 targetPoint)
+    {
+        float3 lineDir = normalize(lineB-lineA);
+        float3 v = targetPoint-lineA;
+        float d = dot(v, lineDir);
+        return lineA+lineDir*d;
     }
 
     
@@ -195,15 +247,36 @@ Shader "FullScreen/RaycharmingShader"
         bool yellow = false;
         bool red = false;
 
-        if (BoxIntersection(b, r)){
+        float dist = 9999;
+        int distCount = 0;
+
+        BoxIntersectionResult boxResult = BoxIntersection(b, r);
+        if (boxResult.intersect){
             for (int i = 0; i < sphereCount; i++)
             {
-                Sphere s = CreateSphere(spherePos[i]-_WorldSpaceCameraPos, 5);
-                if (SphereIntersection(s, r))
+                Sphere s = CreateSphere(spherePos[i]-_WorldSpaceCameraPos,  sphereRadius[i]);
+                SphereIntersectionResult result = SphereIntersection(s,r);
+                
+                if (result.Intersect)
+                {
                     yellow = true;
+                    //dist = max(distance(s.center, result.point1)/s.radius, dist);
+
+                    float3 cp = nearestPointOnLine(result.point1, result.point2, s.center);
+                    dist = min(distance(cp, s.center), dist);
+                    distCount++;
+                }else
+                {
+                    yellow = true;
+                    float3 cp = nearestPointOnLine(boxResult.pointMin, boxResult.pointMax, s.center);
+                    dist = min(distance(cp, s.center), dist);
+                }
             }
             red = true;
         }
+
+      //  dist/=distCount;
+      //  dist*=0.5;
 
         //bool yellow = BoxIntersection(b, r);
 
@@ -228,6 +301,7 @@ Shader "FullScreen/RaycharmingShader"
         
         if (yellow)
         {
+            if (dist < 5)
             color = float4(1,1,0,1);
         }
 

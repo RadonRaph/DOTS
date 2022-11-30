@@ -51,8 +51,8 @@ public class RaycharmingMonobehaviour : MonoBehaviour
       //  _raycharmingSystem.Texture = texture;
         _raycharmingSystem.Init();
         
-        spherePos = new ComputeBuffer(100, 3*4);
-        sphereRadius = new ComputeBuffer(100, 4);
+        spherePos = new ComputeBuffer(1000, 3*4);
+        sphereRadius = new ComputeBuffer(1000, 4);
 
     }
 
@@ -66,7 +66,7 @@ public class RaycharmingMonobehaviour : MonoBehaviour
 
       var particles = _raycharmingSystem.particles;
 
-      int count = Mathf.Min( particles.Length, 100);
+      int count = Mathf.Min( particles.Length, 1000);
       float3[] position = new float3[count];
       float[] radius = new float[count];
 
@@ -75,7 +75,7 @@ public class RaycharmingMonobehaviour : MonoBehaviour
           
           Debug.DrawRay(particles[i].Position, Vector3.up, Color.green);
           position[i] = particles[i].Position;
-          radius[i] = particles[i].Amount*5;
+          radius[i] = particles[i].Amount;
       }
       
       

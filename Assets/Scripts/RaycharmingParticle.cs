@@ -10,6 +10,7 @@ public struct RaycharmingParticle : IComponentData
     public float3 Velocity;
     public float3 Position;
     public float Amount;
+    public float BaseAmount;
     public int lastIndex;
     public float lastAmount;
 

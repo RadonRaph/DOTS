@@ -86,6 +86,9 @@ public partial class RaycharmingSystem : SystemBase
         EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.TempJob);
         EntityCommandBuffer.ParallelWriter wtr = ecb.AsParallelWriter();
 
+        Unity.Mathematics.Random random = new Unity.Mathematics.Random((uint)this.GetHashCode());
+
+
         JobHandle updateParticleHandle = Entities.WithName("Raycharming_Particle_parrallel_update").WithAll<RaycharmingParticle>().ForEach((Entity e, int entityInQueryIndex, ref RaycharmingParticle cell) =>
         {
             float3 pos = cell.Position;
@@ -108,12 +111,23 @@ public partial class RaycharmingSystem : SystemBase
             cell.lastIndex = index;
             
             cell.Velocity *= 0.97f;
-            cell.Velocity += new float3(0, -1f, 0);
+            cell.Velocity += new float3(0, -5f, 0);
             cell.Position += cell.Velocity * dt;
 
-            if (cell.Position.y < -size.y)
+            if (cell.Position.y < -size.y/2f)
             {
-                cell.Amount = 0;
+                float t = cell.Amount/cell.BaseAmount;
+                t *= math.pow(t - 0.01f, 0.1f);
+
+                cell.Amount = t*cell.BaseAmount;
+                cell.Position.y = -size.y/2f;
+                float3 dir = random.NextFloat3Direction()*5;
+                dir.y = 20;
+                cell.Velocity += dir;
+            }
+
+            if (cell.Amount <= 0.1f)
+            {
                 wtr.DestroyEntity(entityInQueryIndex,e);
             }
         }).ScheduleParallel(Dependency);
