@@ -1093,7 +1093,7 @@ MonoBehaviour:
   quantity: 1
   radius: 1
   amount: {x: 5, y: 7}
-  delay: 0.01
+  delay: 0.05
   delayRandomMultiplier: 1
 --- !u!1 &1325219503
 GameObject:
