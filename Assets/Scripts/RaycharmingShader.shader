@@ -31,7 +31,7 @@ Shader "FullScreen/RaycharmingShader"
     // There are also a lot of utility function you can use inside Common.hlsl and Color.hlsl,
     // you can check them out in the source code of the core SRP package.
 
-    struct Ray
+    struct CustomRay
     {
         float3 origin;
         float3 dir;
@@ -39,9 +39,9 @@ Shader "FullScreen/RaycharmingShader"
         int sign[3];
     };
 
-    Ray CreateRay(float3 origin, float3 dir)
+    CustomRay CreateRay(float3 origin, float3 dir)
     {
-        Ray r;
+        CustomRay r;
         r.origin = origin;
         r.dir = dir;
         r.invdir = 1/dir;
@@ -80,7 +80,7 @@ Shader "FullScreen/RaycharmingShader"
     };
 
     
-    BoxIntersectionResult BoxIntersection(Box b, Ray r) {
+    BoxIntersectionResult BoxIntersection(Box b, CustomRay r) {
         BoxIntersectionResult result;
         
         double tx1 = (b.min.x - r.origin.x)*r.invdir.x;
@@ -156,7 +156,7 @@ Shader "FullScreen/RaycharmingShader"
     };
 
     
-    SphereIntersectionResult SphereIntersection(Sphere s, Ray r)
+    SphereIntersectionResult SphereIntersection(Sphere s, CustomRay r)
     {
         SphereIntersectionResult result;
         
@@ -220,7 +220,7 @@ Shader "FullScreen/RaycharmingShader"
 
     float CalculateDistance(Sphere s, float3 p)
     {
-       return  clamp(1- (distance(p, s.center)-s.radius),0,1);
+       return   (distance(p, s.center)-s.radius);
     }
 
 
@@ -245,7 +245,7 @@ Shader "FullScreen/RaycharmingShader"
        float3 dir = GetWorldSpaceViewDir(posInput.positionWS);
 
         
-        Ray r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
+        CustomRay r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
 
         //bool yellow = SphereIntersection(s, r);
 
@@ -263,7 +263,7 @@ Shader "FullScreen/RaycharmingShader"
         float dist_MZ = 0;
         float dist_PZ = 0;
 
-        float delta = 0.00001;
+        float delta = 0.001;
         
         float distCount = 0;
 
@@ -291,11 +291,11 @@ Shader "FullScreen/RaycharmingShader"
                 float3 cp_MZ = cp + float3(0,0,-delta);
                 float3 cp_PZ = cp + float3(0, 0,delta);
 
-                dist += CalculateDistance(s, cp);
+                dist += clamp(1-CalculateDistance(s, cp),0,1);
                 distCount++;
 
-                dist_MX += CalculateDistance(s, cp_MX);
-                dist_PX += CalculateDistance(s, cp_PX);
+                dist_MX +=  CalculateDistance(s, cp_MX);
+                dist_PX +=  CalculateDistance(s, cp_PX);
 
                 dist_MY += CalculateDistance(s, cp_MY);
                 dist_PY += CalculateDistance(s, cp_PY);
@@ -309,8 +309,17 @@ Shader "FullScreen/RaycharmingShader"
             yellow = true;
         }
 
-       // dist /= distCount;
+        dist = clamp(dist, 0,1);
+        //dist /= distCount;
+       // dist_MX/=distCount;
+       // dist_PX/=distCount;
 
+        //dist_MY/=distCount;
+        //dist_PY/=distCount;
+
+        //dist_MZ/=distCount;
+        //dist_PZ/=distCount;
+/*
         dist = pow(dist, 0.9);
 
         dist_MX = pow(dist_MX, 0.9);
@@ -320,16 +329,18 @@ Shader "FullScreen/RaycharmingShader"
         dist_PY = pow(dist_PY, 0.9);
 
         dist_MZ = pow(dist_MZ, 0.9);
-        dist_PZ = pow(dist_PZ, 0.9);
+        dist_PZ = pow(dist_PZ, 0.9);*/
 
 
         float dist_X = dist_PX-dist_MX;
         float dist_Y = dist_PY-dist_MY;
         float dist_Z = dist_PZ-dist_MZ;
 
-        float3 normal = normalize(float3(dist_X, dist_Y, dist_Z));
+        float3 normal = normalize(float3(dist_X, dist_Y, dist_Z)*dist);
+       // float4x4 viewTranspose = transpose(UNITY_MATRIX_V);
+       // normal = mul(viewTranspose, float4(normal.xyz, 0)).xyz;
 
-        float3 light = float3(10,10,0);
+        float3 light = float3(15,45,0);
 
         float lightW = dot(normal, light);
 
@@ -360,10 +371,11 @@ Shader "FullScreen/RaycharmingShader"
         if (yellow)
         {
 
-            float c = dist*lightW+0.5;
-            c= dist;
-            color = float4(c,c,c,1);
-            color = float4(dist_X*1/delta, dist_Y*1/delta, dist_Z*1/delta,1);
+            float c = lightW+1;
+          //  c= dist;
+            color = float4(c,c,c,dist);
+          //  color = float4(normal.xyz,dist);
+            //color = float4(,1);
         }
 
        // color = float4(posInput.positionWS,1);

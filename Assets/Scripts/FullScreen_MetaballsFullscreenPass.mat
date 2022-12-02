@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: FullScreen_VoxelRaycharmer
-  m_Shader: {fileID: 4800000, guid: 36d5debdf99823842bbe7689d5eead8b, type: 3}
+  m_Name: FullScreen_MetaballsFullscreenPass
+  m_Shader: {fileID: 4800000, guid: 98d07d9ab7c66ae49a3ba811c419449e, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -22,11 +22,7 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs:
-    - AmountTex:
-        m_Texture: {fileID: 11700000, guid: 2064bd417a209404fa6e022b5f2edbcd, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
+    m_TexEnvs: []
     m_Ints: []
     m_Floats: []
     m_Colors: []

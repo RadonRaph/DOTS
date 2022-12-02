@@ -117,7 +117,7 @@ public partial class RaycharmingSystem : SystemBase
             if (cell.Position.y < -size.y/2f)
             {
                 float t = cell.Amount/cell.BaseAmount;
-                t *= math.pow(t - 0.01f, 0.1f);
+                t *= math.pow(t - 0.05f, 0.1f);
 
                 cell.Amount = t*cell.BaseAmount;
                 cell.Position.y = -size.y/2f;

@@ -39,7 +39,7 @@ Shader "FullScreen/VoxelRaycharmer"
 
 
 
-        struct Ray
+        struct CustomRay
     {
         float3 origin;
         float3 dir;
@@ -47,9 +47,9 @@ Shader "FullScreen/VoxelRaycharmer"
         int sign[3];
     };
 
-    Ray CreateRay(float3 origin, float3 dir)
+    CustomRay CreateRay(float3 origin, float3 dir)
     {
-        Ray r;
+        CustomRay r;
         r.origin = origin;
         r.dir = dir;
         r.invdir = 1/dir;
@@ -88,7 +88,7 @@ Shader "FullScreen/VoxelRaycharmer"
     };
 
     
-    BoxIntersectionResult BoxIntersection(Box b, Ray r) {
+    BoxIntersectionResult BoxIntersection(Box b, CustomRay r) {
         BoxIntersectionResult result;
 
         
@@ -162,7 +162,7 @@ Shader "FullScreen/VoxelRaycharmer"
         // Add your custom pass code here
 
         Box b = CreateBox(float3(0,0,0)-_WorldSpaceCameraPos, float3(40,32,40));
-        Ray r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
+        CustomRay r = CreateRay(_WorldSpaceCameraPos,  viewDirection);
 
     
 
@@ -187,12 +187,53 @@ Shader "FullScreen/VoxelRaycharmer"
             float4 blendedColor = float4(0,0,0,0);
             float maxA= 0;
             int count = 0;
+
+            float4 v_PX = float4(0,0,0,0);
+            float4 v_MX = float4(0,0,0,0);
+
+            float4 v_PY = float4(0,0,0,0);
+            float4 v_MY = float4(0,0,0,0);
+
+            float4 v_PZ = float4(0,0,0,0);
+            float4 v_MZ = float4(0,0,0,0);
+            
+            float dist_X = 0;
+            float dist_Y = 0;
+            float dist_Z = 0;
+
+            float delta = 0.1f;
             for(float t = 0; t < 1; t+=0.1f)
             {
 
                 currentPos = lerp(startPos, endPos, t);
+
+                float3 pos_PX = currentPos + float3(delta, 0,0); 
+                float3 pos_MX = currentPos + float3(-delta, 0,0); 
+
+                float3 pos_PY = currentPos + float3(0,delta,0); 
+                float3 pos_MY = currentPos + float3(0,-delta, 0);
+
+                float3 pos_PZ = currentPos + float3(0,0,delta); 
+                float3 pos_MZ = currentPos + float3(0,0,-delta); 
+                
                 
                 float4 v = tex3D(AmountTex, currentPos);
+                
+
+                v_PX = BlendUnder(tex3D(AmountTex, pos_PX), v_PX);
+                v_MX = BlendUnder( tex3D(AmountTex, pos_MX), v_MX);
+
+                v_PY = BlendUnder( tex3D(AmountTex, pos_PY), v_PY);
+                v_MY = BlendUnder( tex3D(AmountTex, pos_MY), v_MY);
+
+                v_PZ = BlendUnder( tex3D(AmountTex, pos_PZ), v_PZ);
+                v_MZ = BlendUnder( tex3D(AmountTex, pos_MZ), v_MZ);
+
+
+
+
+
+                
                 mixedColor += v;
                 maxA = max(maxA, v.w);
                 maxColor = max(maxColor, v);
@@ -200,18 +241,33 @@ Shader "FullScreen/VoxelRaycharmer"
 
                 if (v.w>0)
                 {
-                    firstColor = float4(v.xyz, v.w);
+                    firstColor = float4(v.xyz, 1);
+
+
                     
                 }
                 blendedColor = BlendUnder(v, blendedColor);
                 
             }
 
+            dist_X = v_PX.w-v_MX.w;
+            dist_Y = v_PY.w-v_MY.w;
+            dist_Z = v_PZ.w-v_MZ.w;
+
             mixedColor/=count;
-            color = float4( mixedColor.xyz, maxA);
-            color = maxColor;
-            color = firstColor;
-            color = blendedColor;
+
+
+            float3 normal = normalize(float3(dist_X, dist_Y, dist_Z));
+
+            float3 light = float3(45,0,0);
+
+            float lightW =  dot(normal, -light);
+
+            float c= 0.5+(lightW*blendedColor.w);
+            color = float4( c,c,c, blendedColor.w);
+            //color = maxColor;
+            //color = firstColor;
+            //color = blendedColor;
             //color = float4(a,a,a,1);
         }
 
