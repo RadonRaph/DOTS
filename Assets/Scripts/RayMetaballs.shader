@@ -308,7 +308,7 @@ Shader "FullScreen/RayMetaballs"
 
         float a = d < 0;
         color.rgb = 0.5+clamp(dot(normal, float3(30,30,0)),0,1);
-        //color.rgb = normal;
+        color.rgb = normal;
         color.a = a;
 /*
         float3 v = normalize(p);
