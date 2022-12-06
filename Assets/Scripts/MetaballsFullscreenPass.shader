@@ -67,18 +67,13 @@ Shader "FullScreen/MetaballsFullscreenPass"
         return normalize(normal);
     }
 
-    float3 nearestPointOnLine(float3 lineA, float3 lineDir, float3 targetPoint)
-    {
-        float3 v = targetPoint-lineA;
-        float d = dot(v, lineDir);
-        return lineA+lineDir*d;
-    }
+
 
     void SphereTraceMetaballs_float(float3 camPos,float3 viewDir, out float Alpha, out float3 NormalWS)
     {
 
-        float maxDistance = 1000;
-        float threshold = 0.1;
+        float maxDistance = 100;
+        float threshold = 0.00001;
         float t = 0;
         int numSteps = 0;
         

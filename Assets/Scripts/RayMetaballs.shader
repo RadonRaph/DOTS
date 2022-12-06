@@ -161,10 +161,34 @@ Shader "FullScreen/RayMetaballs"
         return lineA+lineDir*d;
     }
 
+    //Nearest point on sphere
+    float3 nearestPointOnLine(float3 lineA, float3 lineDir, float3 targetPoint, float radius)
+    {
+        float3 v = targetPoint-lineA;
+        float d = dot(v, lineDir);
+
+        float3 r = lineA+lineDir*d;
+        if (distance(r, targetPoint) <= radius)
+        {
+            float3 dir = normalize(r-targetPoint);
+            r = targetPoint+dir*radius;
+        }
+        
+        return r;
+    }
+
     float GetDist(float3 from, float3 dir, int sphereI, float3 offset = float3(0,0,0))
     {
         float3 c = spherePos[sphereI];
-        return distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[sphereI];
+        float r = sphereRadius[sphereI];
+
+        float3 p = nearestPointOnLine(from, dir, c, r)+offset;
+
+        float dist = distance(p, c) -r;
+        
+        
+        
+        return max(dist, 0);
 
     }
 
@@ -173,8 +197,7 @@ Shader "FullScreen/RayMetaballs"
         float minDist = 9999;
         for (int i = 0; i < sphereCount; i++)
         {
-            float3 c = spherePos[i];
-            float d = distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[i];
+            float d = GetDist(from, dir, i, offset);
 
             minDist = min(d, minDist);
         }
@@ -187,8 +210,8 @@ Shader "FullScreen/RayMetaballs"
         int count = 0;
         for (int i = 0; i < sphereCount; i++)
         {
-            float3 c = spherePos[i];
-            float d = distance( nearestPointOnLine(from, dir, c), c) -sphereRadius[i];
+
+            float d = GetDist(from, dir , i);
 
             if (d < 0)
             {
@@ -206,8 +229,7 @@ Shader "FullScreen/RayMetaballs"
         float ratio = _smoothness/100;
         for (int i = 0; i < sphereCount; i++)
         {
-            float3 c = spherePos[i];
-            float d = distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[i];
+            float d = GetDist(from, dir, i, offset);
 
             minDist = min(d, minDist);
             total_dist += d;
@@ -220,7 +242,7 @@ Shader "FullScreen/RayMetaballs"
 
     float3 GetNormal(float3 from, float3 dir)
     {
-        float delta =0.001f;
+        float delta =0.1f;
         float powRatio = 1;
 
         float3 normalSum = float3(0,0,0);
@@ -230,19 +252,19 @@ Shader "FullScreen/RayMetaballs"
         
 
 
-            float dist_PX = GetAvgMinDist(from , dir, float3(delta, 0,0));
+            float dist_PX = GetMinDist(from , dir, float3(delta, 0,0));
           //  dist_PX = pow(1-dist_PX, powRatio);
-            float dist_MX = GetAvgMinDist(from, dir,  float3(-delta, 0,0));
+            float dist_MX = GetMinDist(from, dir,  float3(-delta, 0,0));
           //  dist_MX = pow(1-dist_MX, powRatio);
 
-            float dist_PY = GetAvgMinDist(from, dir, float3(0,delta, 0));
+            float dist_PY = GetMinDist(from, dir, float3(0,delta, 0));
         //    dist_PY = pow(1-dist_PY, powRatio);
-            float dist_MY = GetAvgMinDist(from, dir, float3(0,-delta, 0));
+            float dist_MY = GetMinDist(from, dir, float3(0,-delta, 0));
          //   dist_MY = pow(1-dist_MY, powRatio);
 
-            float dist_PZ = GetAvgMinDist(from, dir, float3(0,0,delta));
+            float dist_PZ = GetMinDist(from, dir, float3(0,0,delta));
           //  dist_PZ = pow(1-dist_PZ, powRatio);
-            float dist_MZ = GetAvgMinDist(from, dir, float3(0,0,-delta));
+            float dist_MZ = GetMinDist(from, dir, float3(0,0,-delta));
           //  dist_MZ = pow(1-dist_MZ, powRatio);
 
             float distX = dist_PX-dist_MX;
@@ -262,7 +284,7 @@ Shader "FullScreen/RayMetaballs"
 
     float3 GetAllNormal(float3 from, float3 dir)
     {
-        float delta =0.1f;
+        float delta =0.001f;
         float powRatio = 0.99f;
 
         float3 normalSum = float3(0,0,0);
@@ -339,12 +361,12 @@ Shader "FullScreen/RayMetaballs"
 
         color.rgb =  pow(1-d, 0.9);
 
-        float a = d < 0;
+        float a = d <= 0.1f;
 
         float3 light = TransformWorldToViewNormal(_lightDir, true);
        // light = normalize(_lightDir);
         color.rgb = 0.5+clamp(dot(normal, light),0,1);
-        color.rgb = normal;
+        color.rgb = d;
         color.a = a;
 /*
         float3 v = normalize(p);

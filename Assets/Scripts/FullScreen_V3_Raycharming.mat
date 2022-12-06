@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: FullScreen_RayMetaballs
-  m_Shader: {fileID: 4800000, guid: 947b5a4a7c7c9f1429b43260084a0bd4, type: 3}
+  m_Name: FullScreen_V3_Raycharming
+  m_Shader: {fileID: 4800000, guid: 5631caa951340ac4fbc2526e8cabd08e, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _smoothness: 347.5
+    - _smoothness: 15
     m_Colors:
-    - _lightDir: {r: 0.8, g: 0.1, b: 0.6, a: 1}
+    - _lightDir: {r: 30, g: 30, b: 30, a: 1}
   m_BuildTextureStacks: []
