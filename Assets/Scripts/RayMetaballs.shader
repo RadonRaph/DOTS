@@ -150,6 +150,8 @@ Shader "FullScreen/RayMetaballs"
     Buffer<float3> spherePos;
     Buffer<float> sphereRadius;
 
+    float _smoothness = 20;
+
     float3 _lightDir;
 
     float3 nearestPointOnLine(float3 lineA, float3 lineDir, float3 targetPoint)
@@ -159,20 +161,20 @@ Shader "FullScreen/RayMetaballs"
         return lineA+lineDir*d;
     }
 
-    float GetDist(float3 from, float3 dir, int sphereI)
+    float GetDist(float3 from, float3 dir, int sphereI, float3 offset = float3(0,0,0))
     {
         float3 c = spherePos[sphereI];
-        return distance( nearestPointOnLine(from, dir, c), c) -sphereRadius[sphereI];
+        return distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[sphereI];
 
     }
 
-    float GetMinDist(float3 from, float3 dir)
+    float GetMinDist(float3 from, float3 dir, float3 offset = float3(0,0,0))
     {
         float minDist = 9999;
         for (int i = 0; i < sphereCount; i++)
         {
             float3 c = spherePos[i];
-            float d = distance( nearestPointOnLine(from, dir, c), c) -sphereRadius[i];
+            float d = distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[i];
 
             minDist = min(d, minDist);
         }
@@ -197,6 +199,25 @@ Shader "FullScreen/RayMetaballs"
         return dist;
     }
 
+    float GetAvgMinDist(float3 from, float3 dir, float3 offset = float3(0,0,0))
+    {
+        float minDist = 9999;
+        float total_dist = 0;
+        float ratio = _smoothness/100;
+        for (int i = 0; i < sphereCount; i++)
+        {
+            float3 c = spherePos[i];
+            float d = distance( nearestPointOnLine(from, dir, c)+offset, c) -sphereRadius[i];
+
+            minDist = min(d, minDist);
+            total_dist += d;
+        }
+        return total_dist/((float)sphereCount) - minDist * ratio;
+    }
+
+
+  //  float GetAvgMinDist()
+
     float3 GetNormal(float3 from, float3 dir)
     {
         float delta =0.001f;
@@ -209,19 +230,19 @@ Shader "FullScreen/RayMetaballs"
         
 
 
-            float dist_PX = GetMinDist(from + float3(delta, 0,0), dir);
+            float dist_PX = GetAvgMinDist(from , dir, float3(delta, 0,0));
           //  dist_PX = pow(1-dist_PX, powRatio);
-            float dist_MX = GetMinDist(from + float3(-delta, 0,0), dir);
+            float dist_MX = GetAvgMinDist(from, dir,  float3(-delta, 0,0));
           //  dist_MX = pow(1-dist_MX, powRatio);
 
-            float dist_PY = GetMinDist(from + float3(0,delta, 0), dir);
+            float dist_PY = GetAvgMinDist(from, dir, float3(0,delta, 0));
         //    dist_PY = pow(1-dist_PY, powRatio);
-            float dist_MY = GetMinDist(from + float3(0,-delta, 0), dir);
+            float dist_MY = GetAvgMinDist(from, dir, float3(0,-delta, 0));
          //   dist_MY = pow(1-dist_MY, powRatio);
 
-            float dist_PZ = GetMinDist(from + float3(0,0,delta), dir);
+            float dist_PZ = GetAvgMinDist(from, dir, float3(0,0,delta));
           //  dist_PZ = pow(1-dist_PZ, powRatio);
-            float dist_MZ = GetMinDist(from + float3(0,0,-delta), dir);
+            float dist_MZ = GetAvgMinDist(from, dir, float3(0,0,-delta));
           //  dist_MZ = pow(1-dist_MZ, powRatio);
 
             float distX = dist_PX-dist_MX;
@@ -237,11 +258,11 @@ Shader "FullScreen/RayMetaballs"
         return normalSum;
     }
 
-    float _smoothness = 20;
+    
 
     float3 GetAllNormal(float3 from, float3 dir)
     {
-        float delta =0.001f;
+        float delta =0.1f;
         float powRatio = 0.99f;
 
         float3 normalSum = float3(0,0,0);
@@ -259,19 +280,19 @@ Shader "FullScreen/RayMetaballs"
                 continue;
             }
 
-            float dist_PX = GetDist(from + float3(delta, 0,0), dir, i);
+            float dist_PX = GetDist(from, dir, i, float3(delta, 0,0));
             //dist_PX = pow(1-dist_PX, powRatio);
-            float dist_MX = GetDist(from + float3(-delta, 0,0), dir, i);
+            float dist_MX = GetDist(from , dir, i, float3(-delta, 0,0));
             //dist_MX = pow(1-dist_MX, powRatio);
 
-            float dist_PY = GetDist(from + float3(0,delta, 0), dir, i);
+            float dist_PY = GetDist(from, dir, i, float3(0,delta, 0));
             //dist_PY = pow(1-dist_PY, powRatio);
-            float dist_MY = GetDist(from + float3(0,-delta, 0), dir, i);
+            float dist_MY = GetDist(from, dir, i,  float3(0,-delta, 0));
             //dist_MY = pow(1-dist_MY, powRatio);
 
-            float dist_PZ = GetDist(from + float3(0,0,delta), dir, i);
+            float dist_PZ = GetDist(from, dir, i, float3(0,0,delta));
            // dist_PZ = pow(1-dist_PZ, powRatio);
-            float dist_MZ = GetDist(from + float3(0,0,-delta), dir, i);
+            float dist_MZ = GetDist(from, dir, i, float3(0,0,-delta));
            // dist_MZ = pow(1-dist_MZ, powRatio);
 
             float distX = dist_PX-dist_MX;
@@ -309,8 +330,9 @@ Shader "FullScreen/RayMetaballs"
         //float3 allNormal = GetAllNormal(from, dir);
 
         //normal = lerp(normal, allNormal, 0.9f);
-        float3 viewNormal = GetAllNormal(from, dir);
-        float3 normal = TransformViewToWorldNormal(viewNormal);
+        float3 viewNormal = GetNormal(from, dir);
+        //float3 normal = TransformViewToWorldNormal(viewNormal);
+        float3 normal = viewNormal;
 
 
 
@@ -320,8 +342,9 @@ Shader "FullScreen/RayMetaballs"
         float a = d < 0;
 
         float3 light = TransformWorldToViewNormal(_lightDir, true);
+       // light = normalize(_lightDir);
         color.rgb = 0.5+clamp(dot(normal, light),0,1);
-        //color.rgb = normal;
+        color.rgb = normal;
         color.a = a;
 /*
         float3 v = normalize(p);
