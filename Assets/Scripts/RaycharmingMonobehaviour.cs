@@ -76,6 +76,7 @@ public class RaycharmingMonobehaviour : MonoBehaviour
       position[1] = new float3(0, 3, 0);
       radius[1] = 4;
       */
+      
 
       int count = Mathf.Min( particles.Length, 1000);
       float3[] position = new float3[count];

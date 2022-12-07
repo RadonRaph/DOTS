@@ -1,4 +1,4 @@
-Shader "FullScreen/V3_Raycharming"
+Shader "FullScreen/V4_Raycharming"
 {
     Properties
     {
@@ -83,6 +83,13 @@ Shader "FullScreen/V3_Raycharming"
         float3 normal1;
     };
 
+    struct PointAndNormal
+    {
+        float3 position;
+        float3 normal;
+        float alpha;
+    };
+
     
     SphereIntersectionResult SphereIntersection(Sphere s, CustomRay r)
     {
@@ -143,51 +150,42 @@ Shader "FullScreen/V3_Raycharming"
     }
 
 
-    float3 GetClosestPoint(CustomRay r, Sphere s)
+    PointAndNormal GetClosestPointAndNormal(CustomRay r, Sphere s)
     {
         SphereIntersectionResult result = SphereIntersection(s,r);
 
+        PointAndNormal output;
+        output.position = float3(999,999,999);
+        output.normal = 0;
+        output.alpha = 0;
+
         if (result.Intersect)
         {
-            return result.point1;
+            output.position = result.point1;
+            output.normal = result.normal1;
+            output.alpha = 1;
         }else{
-           // return nearestPointOnLine(r.origin, r.dir, s.center);
-            return float3(9999,9999,9999);
+            output.position = nearestPointOnLine(r.origin, r.dir, s.center);
+            
+            
         }
-        
-    }
-    float GetDistanceMetaball(float3 p)
-    {
-        float sumDensity = 0;
-        float sumRi = 0;
-        float minDistance = 100000;
-        for (int i = 0; i < sphereCount; ++i)
-        {
-            float3 center = spherePos[i];
-            float radius =  sphereRadius[i];
-            float r = length(center - p);
-            if (r <= radius)
-            {
-                sumDensity += 2 * (r * r * r) / (radius * radius * radius) - 3 * (r * r) / (radius * radius) + 1;
-            }
-            minDistance = min(minDistance, r - radius);
-            sumRi += radius;
-        }
-
-        return max(minDistance, (0.2 - sumDensity) / (3 / 2.0 * sumRi));
+        return output;
     }
 
 
-    float3 FindClosestPoint(CustomRay ray)
+    PointAndNormal FindClosestPoint(CustomRay ray)
     {
         float minDist = 999999;
-        float3 result = float3(999,999,999);
+        PointAndNormal result;
+        result.position = float3(999,999,999);
+        result.normal = 0;
+        result.alpha = 0;
         for (int i = 0; i < sphereCount; i++)
         {
             Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
 
-            float3 closestPoint = GetClosestPoint(ray,s);
-            float d = distance(closestPoint, ray.origin);
+            PointAndNormal closestPoint = GetClosestPointAndNormal(ray,s);
+            float d = distance(closestPoint.position, ray.origin);
 
             if (d < minDist)
             {
@@ -199,44 +197,7 @@ Shader "FullScreen/V3_Raycharming"
         return result;
     }
 
-    float3 CalculateNormalMetaball(float3 from)
-    {
-        float delta = _smoothness;
-        float3 normal = float3(
-            GetDistanceMetaball(from + float3(delta, 0, 0)) - GetDistanceMetaball(from + float3(-delta, 0, 0)),
-            GetDistanceMetaball(from + float3(0, delta, 0)) - GetDistanceMetaball(from + float3(-0, -delta, 0)),
-            GetDistanceMetaball(from + float3(0, 0, delta)) - GetDistanceMetaball(from + float3(0, 0, -delta))
-        );
-        return normalize(normal);
-    }
 
-    float GetMinDist(CustomRay ray, out float alpha)
-    {
-        float minDistance = 99999;
-        alpha = 0;
-
-        for (int i =0; i < sphereCount; i++)
-        {
-            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
-
-            SphereIntersectionResult result = SphereIntersection(s, ray);
-
-            if (result.Intersect)
-            {
-                alpha=1;
-
-                float dist =distance(s.center, ray.origin)-s.radius;
-                if (dist < minDistance)
-                {
-                    minDistance = dist;
-                }
-
-            }
-            
-        }
-
-        return minDistance;
-    }
     
     
     float4 FullScreenPass(Varyings varyings) : SV_Target
@@ -256,21 +217,45 @@ Shader "FullScreen/V3_Raycharming"
         float3 from = _WorldSpaceCameraPos;
         float3 dir = viewDirection;
 
-
+        float delta = 1;
 
         CustomRay ray = CreateRay(from, dir);
+
+        CustomRay rayPX = CreateRay(from+float3(delta,0,0), dir);
+        CustomRay rayMX = CreateRay(from-float3(delta,0,0), dir);
+
+        CustomRay rayPY = CreateRay(from+float3(0,delta,0), dir);
+        CustomRay rayMY = CreateRay(from-float3(0,delta,0), dir);
+
+        CustomRay rayPZ = CreateRay(from+float3(0,0,delta), dir);
+        CustomRay rayMZ = CreateRay(from-float3(0,0,delta), dir);
+
+        
         
 
-        float3 closestPoint = FindClosestPoint(ray);
-        float d = GetDistanceMetaball(closestPoint);
+        float3 normal = 0;
+        float3 closestPoint = float3(9999,9999,9999);
+        float alpha = 0;
+
+        for (int i = 0; i < sphereCount; i++)
+        {
+            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
+
+            SphereIntersectionResult result = SphereIntersection(s, ray);
+
+            if (result.Intersect)
+            {
+                alpha = 1;
+                if (distance(closestPoint, ray.origin) > distance(result.point1, ray.origin))
+                {
+                    closestPoint = result.point1;
+                    normal = result.normal1;
+                }
+            }
+            
+        }
 
 
-        //float d = GetDistanceMetaball(closestPoint);
-        float3 normal = CalculateNormalMetaball(closestPoint);
-
-        float3 light = normalize(_lightDir);
-
-        float lightPow = 0.5 + dot(light, normal);
 
 
 
@@ -278,8 +263,8 @@ Shader "FullScreen/V3_Raycharming"
 
        // color = float4(normal.xyz, 1);
 
-       color.rgb = lightPow;
-        color.a = d<1000 ;
+       color.rgb = normal;
+        color.a = alpha;
        // color.a = 0;
 
 
