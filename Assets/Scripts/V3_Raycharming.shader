@@ -151,7 +151,8 @@ Shader "FullScreen/V3_Raycharming"
         {
             return result.point1;
         }else{
-            return nearestPointOnLine(r.origin, r.dir, s.center);
+           // return nearestPointOnLine(r.origin, r.dir, s.center);
+            return float3(9999,9999,9999);
         }
         
     }
@@ -188,11 +189,11 @@ Shader "FullScreen/V3_Raycharming"
             float3 center = spherePos[i];
             float radius = max( sphereRadius[i],1);
             float r = length(center - p);
-            float d = distance(center,p) - radius;
+            float d = distance(center,p);
 
             minDistance = min(minDistance, d);
 
-            if (d <= 0)
+           // if (d <= 0)
             {
                 minCount++;
                 minSum+=d;
@@ -200,7 +201,7 @@ Shader "FullScreen/V3_Raycharming"
 
         }
 
-        return  minDistance;
+        return  minSum/minCount;
 
         if (minCount == 0)
         {
@@ -215,13 +216,12 @@ Shader "FullScreen/V3_Raycharming"
     float3 FindClosestPoint(CustomRay ray)
     {
         float minDist = 999999;
-        float3 result = float3(0,0,0);
+        float3 result = float3(999,999,999);
         for (int i = 0; i < sphereCount; i++)
         {
             Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
 
             float3 closestPoint = GetClosestPoint(ray,s);
-//C DEBILE ça
             float d = distance(closestPoint, ray.origin);
 
             if (d < minDist)
@@ -244,6 +244,34 @@ Shader "FullScreen/V3_Raycharming"
         );
         return normalize(normal);
     }
+
+    float GetMinDist(CustomRay ray, out float alpha)
+    {
+        float minDistance = 99999;
+        alpha = 0;
+
+        for (int i =0; i < sphereCount; i++)
+        {
+            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
+
+            SphereIntersectionResult result = SphereIntersection(s, ray);
+
+            if (result.Intersect)
+            {
+                alpha=1;
+
+                float dist =distance(s.center, ray.origin)-s.radius;
+                if (dist < minDistance)
+                {
+                    minDistance = dist;
+                }
+
+            }
+            
+        }
+
+        return minDistance;
+    }
     
     
     float4 FullScreenPass(Varyings varyings) : SV_Target
@@ -263,9 +291,22 @@ Shader "FullScreen/V3_Raycharming"
         float3 from = _WorldSpaceCameraPos;
         float3 dir = viewDirection;
 
+        float delta = 1;
+
         CustomRay ray = CreateRay(from, dir);
 
+        CustomRay rayPX = CreateRay(from+float3(delta,0,0), dir);
+        CustomRay rayMX = CreateRay(from-float3(delta,0,0), dir);
+
+        CustomRay rayPY = CreateRay(from+float3(0,delta,0), dir);
+        CustomRay rayMY = CreateRay(from-float3(0,delta,0), dir);
+
+        CustomRay rayPZ = CreateRay(from+float3(0,0,delta), dir);
+        CustomRay rayMZ = CreateRay(from-float3(0,0,delta), dir);
+        
+
         float3 closestPoint = FindClosestPoint(ray);
+        float d = GetDistanceMetaball(closestPoint);
 
         Sphere c = CreateSphere(closestPoint, 1);
 
@@ -273,40 +314,14 @@ Shader "FullScreen/V3_Raycharming"
         //float3 normal = CalculateNormalMetaball(closestPoint);
 
 
-        
-        float3 normal = float3(0,0,0);
-        float minDistance = 99999;
-        float d = 0;
-
-        for (int i =0; i < sphereCount; i++)
-        {
-            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
-
-            SphereIntersectionResult result = SphereIntersection(s, ray);
-
-            if (result.Intersect)
-            {
-                d=-1;
-
-                float dist =distance(s.center, ray.origin)-s.radius;
-                if (dist < minDistance)
-                {
-                    minDistance = dist;
-                    normal = result.normal1;
-                }
-
-            }
-            
-        }
-
 
 
         
 
        // color = float4(normal.xyz, 1);
 
-       color.rgb = minDistance/100;
-        color.a = d<0;
+       color.rgb = (d*0.01f);
+        color.a = d<1000 ;
        // color.a = 0;
 
 
