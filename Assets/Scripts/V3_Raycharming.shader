@@ -80,6 +80,7 @@ Shader "FullScreen/V3_Raycharming"
         bool Intersect;
         float3 point1;
         float3 point2;
+        float3 normal1;
     };
 
     
@@ -102,6 +103,8 @@ Shader "FullScreen/V3_Raycharming"
             result.point1 = r.origin+r.dir*v;
             result.point2 = r.origin+r.dir*v;
 
+            result.normal1 = normalize(result.point1-s.center);
+
             result.Intersect = true;
         }
         else
@@ -113,6 +116,8 @@ Shader "FullScreen/V3_Raycharming"
             
             result.point1 = r.origin+r.dir * min(x0,x1);
             result.point2 = r.origin+r.dir* max(x0,x1);
+
+            result.normal1 = normalize(result.point1-s.center);
 
             result.Intersect = true;
         }
@@ -195,6 +200,8 @@ Shader "FullScreen/V3_Raycharming"
 
         }
 
+        return  minDistance;
+
         if (minCount == 0)
         {
             return minDistance;
@@ -207,15 +214,15 @@ Shader "FullScreen/V3_Raycharming"
 
     float3 FindClosestPoint(CustomRay ray)
     {
-        float minDist = 9999;
+        float minDist = 999999;
         float3 result = float3(0,0,0);
         for (int i = 0; i < sphereCount; i++)
         {
-            Sphere s = CreateSphere(spherePos[i], spherePos[i]);
+            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
 
             float3 closestPoint = GetClosestPoint(ray,s);
 //C DEBILE ça
-            float d = distance(closestPoint, s.center)-s.radius;
+            float d = distance(closestPoint, ray.origin);
 
             if (d < minDist)
             {
@@ -260,14 +267,50 @@ Shader "FullScreen/V3_Raycharming"
 
         float3 closestPoint = FindClosestPoint(ray);
 
-        float d = GetDistanceMetaball(closestPoint);
-        float3 normal = CalculateNormalMetaball(closestPoint);
+        Sphere c = CreateSphere(closestPoint, 1);
+
+        //float d = GetDistanceMetaball(closestPoint);
+        //float3 normal = CalculateNormalMetaball(closestPoint);
+
+
+        
+        float3 normal = float3(0,0,0);
+        float minDistance = 99999;
+        float d = 0;
+
+        for (int i =0; i < sphereCount; i++)
+        {
+            Sphere s = CreateSphere(spherePos[i], sphereRadius[i]);
+
+            SphereIntersectionResult result = SphereIntersection(s, ray);
+
+            if (result.Intersect)
+            {
+                d=-1;
+
+                float dist =distance(s.center, ray.origin)-s.radius;
+                if (dist < minDistance)
+                {
+                    minDistance = dist;
+                    normal = result.normal1;
+                }
+
+            }
+            
+        }
+
+
+
+        
 
        // color = float4(normal.xyz, 1);
 
-        color.rgb = 1;
-        color.a = d <= 0;
-        
+       color.rgb = minDistance/100;
+        color.a = d<0;
+       // color.a = 0;
+
+
+
 
 
 
