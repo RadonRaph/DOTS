@@ -53,7 +53,7 @@ public class MonoRaymarcher : MonoBehaviour
         return  s;
     }
     
-    SphereIntersectionResult SphereIntersection(Sphere s, CustomRay r)
+    SphereIntersectionResult OldSphereIntersection(Sphere s, CustomRay r)
     {
         SphereIntersectionResult result = new SphereIntersectionResult();
         
@@ -95,11 +95,69 @@ public class MonoRaymarcher : MonoBehaviour
 
         return result;
     }
+
+    Vector3 VPow(Vector3 v)
+    {
+        v.x *= v.x;
+        v.y *= v.y;
+        v.z *= v.z;
+        return v;
+    }
+    
+    SphereIntersectionResult SphereIntersection(Sphere s, CustomRay r)
+    {
+        SphereIntersectionResult result = new SphereIntersectionResult();
+        
+// Calculate ray start's offset from the sphere center
+        Vector3 p = r.origin - s.center;
+
+        float rSquared = s.radius2;
+        float p_d = Vector3.Dot(p, r.dir);
+
+// The sphere is behind or surrounding the start point.
+        if (p_d > 0 || Vector3.Dot(p, p) < rSquared)
+        {
+            result.Intersect = false;
+            return result;
+        }
+
+// Flatten p into the plane passing through c perpendicular to the ray.
+// This gives the closest approach of the ray to the center.
+        Vector3 a = p - p_d * r.dir;
+
+        float aSquared = Vector3.Dot(a, a);
+
+// Closest approach is outside the sphere.
+        if (aSquared > rSquared)
+        {
+            result.Intersect = false;
+            return result;
+        }
+
+// Calculate distance from plane where ray enters/exits the sphere.    
+        float h = Mathf.Sqrt(rSquared - aSquared);
+
+// Calculate intersection point relative to sphere center.
+        Vector3 i = a - h * r.dir;
+
+        Vector3 intersection = s.center + i;
+        Vector3 normal = i/s.radius;
+
+        result.point1 = intersection;
+        result.normal1 = normal;
+        result.Intersect = true;
+// We've taken a shortcut here to avoid a second square root.
+// Note numerical errors can make the normal have length slightly different from 1.
+// If you need higher precision, you may need to perform a conventional normalization.
+
+        return result;
+    }
+
     
     Vector3 nearestPointOnLine(Vector3 lineA, Vector3 lineDir, Vector3 targetPoint)
     {
         Vector3 v = targetPoint-lineA;
-        float d = Vector3.Dot(v, lineDir);
+        float d = Vector3.Dot(lineDir,v );
         return lineA+lineDir*d;
     }
     
@@ -128,9 +186,11 @@ public class MonoRaymarcher : MonoBehaviour
         if (result.Intersect)
         {
             output.point = result.point1;
+            DebugQuirk(output.point, Color.cyan);
             output.normal = result.normal1;
         }else{
             output.point = nearestPointOnLine(r.origin, r.dir, s.center);
+            DebugQuirk(output.point, Color.blue);
             //return new Vector3(9999,9999,9999);
         }
 
